@@ -9,7 +9,7 @@ public:
     Quaternion(float a, float b, float c, float d);
     Quaternion add(const Quaternion& other);
     Quaternion multiply(float x);
-    Quaternion mutliply(const Quaternion& other);
+    Quaternion multiply(const Quaternion& other);
     Quaternion conjugate();
     Quaternion getUnit();
     float getNorm();

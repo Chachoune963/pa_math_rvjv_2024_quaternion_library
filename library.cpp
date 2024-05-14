@@ -37,12 +37,12 @@ Quaternion Quaternion::multiply(float x) {
     return result;
 }
 
-Quaternion Quaternion::mutliply(const Quaternion &other) {
+Quaternion Quaternion::multiply(const Quaternion &other) {
     Quaternion result = Quaternion();
     result.a = (a * other.a) - (b * other.b) - (c * other.c) - (d * other.d);
     result.b = (a * other.b) + (b * other.a) + (c * other.d) - (d * other.c);
     result.c = (a * other.c) - (b * other.d) + (c * other.a) + (d * other.b);
-    result.d = (a * other.d) - (b * other.c) - (c * other.b) - (d * other.a);
+    result.d = (a * other.d) + (b * other.c) - (c * other.b) + (d * other.a);
 
     return result;
 }
