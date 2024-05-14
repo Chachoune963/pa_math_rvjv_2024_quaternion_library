@@ -4,17 +4,21 @@
 struct Quaternion
 {
 public:
-    float a, b, c, d;
+    double a, b, c, d;
 
-    Quaternion(float a, float b, float c, float d);
+    Quaternion(double a, double b, double c, double d);
     Quaternion add(const Quaternion& other);
-    Quaternion multiply(float x);
+    Quaternion multiply(double x);
     Quaternion multiply(const Quaternion& other);
     Quaternion conjugate();
     Quaternion getUnit();
-    float getNorm();
-    float scalarProduct(const Quaternion& other);
+    double getNorm();
+    double scalarProduct(const Quaternion& other);
+
+    static Quaternion eulerAngles(double rads, double x, double y, double z);
+
     class QuaternionMatrix toMatrix();
+    class RotationMatrix getRotationMatrix();
 
 private:
     Quaternion();
@@ -23,21 +27,52 @@ private:
 struct QuaternionMatrix
 {
 public:
-    float a1, a2, a3, a4;
-    float b1, b2, b3, b4;
-    float c1, c2, c3, c4;
-    float d1, d2, d3, d4;
+    double a1, a2, a3, a4;
+    double b1, b2, b3, b4;
+    double c1, c2, c3, c4;
+    double d1, d2, d3, d4;
 
-    QuaternionMatrix(float a1, float a2, float a3, float a4, float b1, float b2, float b3, float b4, float c1, float c2,
-                     float c3, float c4, float d1, float d2, float d3, float d4);
+    QuaternionMatrix(double a1, double a2, double a3, double a4, double b1, double b2, double b3, double b4, double c1, double c2,
+                     double c3, double c4, double d1, double d2, double d3, double d4);
 
-    QuaternionMatrix multiply(float x);
+    QuaternionMatrix multiply(double x);
     QuaternionMatrix multiply(QuaternionMatrix other);
 
     Quaternion toQuaternion();
 
 private:
     QuaternionMatrix() {};
+};
+
+struct RotationMatrix
+{
+public:
+    double a1, a2, a3;
+    double b1, b2, b3;
+    double c1, c2, c3;
+
+    RotationMatrix(double a1, double a2, double a3, double b1, double b2, double b3, double c1, double c2, double c3);
+
+    RotationMatrix multiply(double x);
+    RotationMatrix multiply(const RotationMatrix& other);
+
+    Quaternion toQuaternion();
+
+private:
+    RotationMatrix();
+};
+
+// Basic Vector3 structure for demonstration purposes
+struct Double3
+{
+public:
+    double x, y, z;
+
+    Double3();
+    Double3(double x, double y, double z);
+
+    Double3 rotate(const class RotationMatrix& matrix);
+    Double3 rotate(const class Quaternion& quaternion);
 };
 
 #endif //QUATERNION_LIBRARY_H
