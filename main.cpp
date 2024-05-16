@@ -110,27 +110,19 @@ GLuint createProgram(GLuint vertexShader, GLuint fragmentShader) {
     return program;
 }
 
-void applyRotationWithQuaternion(const Quaternion& q, GLfloat* matrix) {
-    QuaternionMatrix rotationMatrix = q.toRotationMatrix();
-    GLfloat tempMatrix[16] = {
-            rotationMatrix.a1, rotationMatrix.a2, rotationMatrix.a3, rotationMatrix.a4,
-            rotationMatrix.b1, rotationMatrix.b2, rotationMatrix.b3, rotationMatrix.b4,
-            rotationMatrix.c1, rotationMatrix.c2, rotationMatrix.c3, rotationMatrix.c4,
-            rotationMatrix.d1, rotationMatrix.d2, rotationMatrix.d3, rotationMatrix.d4
-    };
-    for (int i = 0; i < 16; ++i) {
-        matrix[i] = tempMatrix[i];
-    }
+
+void applyRotationWithQuaternion(Quaternion& q, GLfloat* matrix) {
+    // TODO: Rotate all vertices of the left cube with Double3 rotate(const class Quaternion& quaternion);
 }
 
-void applyRotationWithMatrix(float angle, GLfloat* matrix) {
-    float cosA = cos(angle);
-    float sinA = sin(angle);
-    matrix[0] = cosA; matrix[4] = -sinA; matrix[8] = 0.0f; matrix[12] = 0.0f;
-    matrix[1] = sinA; matrix[5] = cosA;  matrix[9] = 0.0f; matrix[13] = 0.0f;
-    matrix[2] = 0.0f; matrix[6] = 0.0f;  matrix[10] = 1.0f; matrix[14] = 0.0f;
-    matrix[3] = 0.0f; matrix[7] = 0.0f;  matrix[11] = 0.0f; matrix[15] = 1.0f;
+void applyRotationWithMatrix(Quaternion& q, GLfloat* matrix) {
+    RotationMatrix quaternionMatrix = q.getRotationMatrix();
+    matrix[0] = quaternionMatrix.a1; matrix[1] = quaternionMatrix.a2; matrix[2] = quaternionMatrix.a3; 
+    matrix[4] = quaternionMatrix.b1; matrix[5] = quaternionMatrix.b2; matrix[6] = quaternionMatrix.b3;
+    matrix[8] = quaternionMatrix.c1; matrix[9] = quaternionMatrix.c2; matrix[10] = quaternionMatrix.c3;
+    matrix[15] = 1;
 }
+
 
 void applyTranslation(GLfloat x, GLfloat y, GLfloat z, GLfloat* matrix) {
     matrix[12] = x;
@@ -214,14 +206,14 @@ int main() {
         // NOTE: Calculate the angle of rotation based on time
         float timeValue = (float)glfwGetTime();
         float angle = timeValue * M_PI / 4; // NOTE: Rotate 45 degrees per second
-        Quaternion q_rotation = Quaternion(cos(angle / 2), sin(angle / 2) * 1, sin(angle / 2) * 1, 0).getUnit();
-
+        Quaternion q_rotation = Quaternion::eulerAngles(angle, 1, 1, 0);
+        
         // NOTE: Compose rotations
-        Quaternion q_composed = q1.mutliply(q_rotation).mutliply(q2);
+        Quaternion q_composed = q1.multiply(q_rotation).multiply(q2).getUnit();
 
         // NOTE: Apply rotations
         applyRotationWithQuaternion(q_composed, matrix1);
-        applyRotationWithMatrix(angle, matrix2);
+        applyRotationWithMatrix(q_composed, matrix2);
 
         // NOTE: Apply translations
         applyTranslation(-2.0f, 0.0f, 0.0f, matrix1); // NOTE: Move left cube (quaternion) to the left
