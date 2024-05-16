@@ -2,6 +2,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <cmath>
+#include <cstring>
 #include "library.h"
 
 const GLint WINDOW_WIDTH = 800, WINDOW_HEIGHT = 600;
@@ -110,24 +111,45 @@ GLuint createProgram(GLuint vertexShader, GLuint fragmentShader) {
     return program;
 }
 
-
-void applyRotationWithQuaternion(Quaternion& q, GLfloat* matrix) {
-    // TODO: Rotate all vertices of the left cube with Double3 rotate(const class Quaternion& quaternion);
+void applyRotationWithQuaternion(Quaternion& q, GLfloat* vertices, int vertexCount) {
+    for (int i = 0; i < vertexCount; i += 3) {
+        Double3 vertex(vertices[i], vertices[i + 1], vertices[i + 2]);
+        Double3 rotatedVertex = vertex.rotate(q);
+        vertices[i] = rotatedVertex.x;
+        vertices[i + 1] = rotatedVertex.y;
+        vertices[i + 2] = rotatedVertex.z;
+    }
 }
 
 void applyRotationWithMatrix(Quaternion& q, GLfloat* matrix) {
     RotationMatrix quaternionMatrix = q.getRotationMatrix();
-    matrix[0] = quaternionMatrix.a1; matrix[1] = quaternionMatrix.a2; matrix[2] = quaternionMatrix.a3; 
+    matrix[0] = quaternionMatrix.a1; matrix[1] = quaternionMatrix.a2; matrix[2] = quaternionMatrix.a3;
     matrix[4] = quaternionMatrix.b1; matrix[5] = quaternionMatrix.b2; matrix[6] = quaternionMatrix.b3;
     matrix[8] = quaternionMatrix.c1; matrix[9] = quaternionMatrix.c2; matrix[10] = quaternionMatrix.c3;
     matrix[15] = 1;
 }
 
-
 void applyTranslation(GLfloat x, GLfloat y, GLfloat z, GLfloat* matrix) {
     matrix[12] = x;
     matrix[13] = y;
     matrix[14] = z;
+}
+
+void printMatrix(const GLfloat* matrix, const char* name) {
+    printf("%s:\n", name);
+    for (int i = 0; i < 4; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            printf("%f ", matrix[i * 4 + j]);
+        }
+        printf("\n");
+    }
+}
+
+void printVertices(const GLfloat* vertices, int vertexCount) {
+    printf("Vertices:\n");
+    for (int i = 0; i < vertexCount; i += 3) {
+        printf("%f %f %f\n", vertices[i], vertices[i + 1], vertices[i + 2]);
+    }
 }
 
 int main() {
@@ -193,7 +215,23 @@ int main() {
     Quaternion q1 = Quaternion(cos(M_PI / 8), sin(M_PI / 8), 0, 0); // NOTE: 45-degree rotation around x-axis
     Quaternion q2 = Quaternion(cos(M_PI / 8), 0, sin(M_PI / 8), 0); // NOTE: 45-degree rotation around y-axis
 
-    GLfloat matrix1[16], matrix2[16];
+    GLfloat matrix1[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+    };
+
+    GLfloat matrix2[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+    };
+
+    // NOTE: Copy of original vertices for the left cube
+    GLfloat originalVertices[sizeof(vertices) / sizeof(vertices[0])];
+    memcpy(originalVertices, vertices, sizeof(vertices));
 
     // NOTE: Enable depth test
     glEnable(GL_DEPTH_TEST);
@@ -205,19 +243,32 @@ int main() {
     while (!glfwWindowShouldClose(window) && glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         // NOTE: Calculate the angle of rotation based on time
         float timeValue = (float)glfwGetTime();
-        float angle = timeValue * M_PI / 4; // NOTE: Rotate 45 degrees per second
+        float angle = timeValue * M_PI / 8; // NOTE: Rotate 22.5 degrees per second
+
         Quaternion q_rotation = Quaternion::eulerAngles(angle, 1, 1, 0);
-        
+
         // NOTE: Compose rotations
         Quaternion q_composed = q1.multiply(q_rotation).multiply(q2).getUnit();
 
+        // NOTE: Reset vertices to original before applying the rotation
+        memcpy(vertices, originalVertices, sizeof(vertices));
+
         // NOTE: Apply rotations
-        applyRotationWithQuaternion(q_composed, matrix1);
+        applyRotationWithQuaternion(q_composed, vertices, sizeof(vertices) / sizeof(vertices[0]));
         applyRotationWithMatrix(q_composed, matrix2);
 
         // NOTE: Apply translations
         applyTranslation(-2.0f, 0.0f, 0.0f, matrix1); // NOTE: Move left cube (quaternion) to the left
         applyTranslation(2.0f, 0.0f, 0.0f, matrix2);  // NOTE: Move right cube (matrix) to the right
+
+        // NOTE: Print matrices and vertices for debugging
+        // printMatrix(matrix1, "Matrix1 (Cube Left)");
+        // printMatrix(matrix2, "Matrix2 (Cube Right)");
+        // printVertices(vertices, sizeof(vertices) / sizeof(vertices[0]));
+
+        // NOTE: Update the vertices of the left cube
+        glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
         // NOTE: Clear the colorbuffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
