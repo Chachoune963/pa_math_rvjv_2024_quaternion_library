@@ -243,7 +243,7 @@ int main() {
     while (!glfwWindowShouldClose(window) && glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         // NOTE: Calculate the angle of rotation based on time
         float timeValue = (float)glfwGetTime();
-        float angle = timeValue * M_PI / 8; // NOTE: Rotate 22.5 degrees per second
+        float angle = timeValue * M_PI / 4; // NOTE: Rotate 45 degrees per second
 
         Quaternion q_rotation = Quaternion::eulerAngles(angle, 1, 1, 0);
 
