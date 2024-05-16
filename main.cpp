@@ -212,8 +212,8 @@ int main() {
     }
 
     // NOTE: Define basic quaternions for rotations
-    Quaternion q1 = Quaternion(cos(M_PI / 8), sin(M_PI / 8), 0, 0); // NOTE: 45-degree rotation around x-axis
-    Quaternion q2 = Quaternion(cos(M_PI / 8), 0, sin(M_PI / 8), 0); // NOTE: 45-degree rotation around y-axis
+    Quaternion q1 = Quaternion::eulerAngles(M_PI / 4, 1, 0, 0); // 45-degree rotation around x-axis
+    Quaternion q2 = Quaternion::eulerAngles(M_PI / 4, 0, 1, 0); // 45-degree rotation around y-axis
 
     GLfloat matrix1[16] = {
             1, 0, 0, 0,
