@@ -88,6 +88,15 @@ class RotationMatrix Quaternion::getRotationMatrix() {
     );
 }
 
+double Quaternion::crossProduct(const Quaternion &other) {
+    return Quaternion(
+            b * other.c - c * other.b,
+            c * other.d - d * other.c,
+            d * other.a - a * other.d,
+            a * other.b - b * other.a
+    );
+}
+
 // ----- MATRIX -----
 
 // ugly constructor
@@ -173,6 +182,38 @@ RotationMatrix RotationMatrix::multiply(const RotationMatrix &other) {
     };
 }
 
+Quaternion RotationMatrix::toQuaternion() {
+    Quaternion q = Quaternion(0, 0, 0, 0);
+    double t;
+    if (c3 < 0)
+    {
+        if (a1 > b2)
+        {
+            t = 1 + a1 - b2 - c3;
+            q = Quaternion(t, a2+b1, c1+a3, b3-c2);
+        }
+        else
+        {
+            t = 1 - a1 + b2 - c3;
+            q = Quaternion(a2+b1, t, b3+c2, c1-a3);
+        }
+    }
+    else
+    {
+        if (a1 < - b2)
+        {
+            t = 1 - a1 - b2 + c3;
+            q = Quaternion(c1+a3, b3+c2, t, a2-b1);
+        }
+        else
+        {
+            t = 1 + a1 + b2 + c3;
+            q = Quaternion(b3-c2, c1-a3, a2-b1, t);
+        }
+    }
+    return q.multiply(0.5 / sqrt(t));
+}
+
 // ----- DOUBLE 3 -----
 
 Double3::Double3() {}
@@ -196,4 +237,12 @@ Double3 Double3::rotate(const Quaternion &quaternion) {
     Quaternion result = temp.multiply(Quaternion(0, x, y, z)).multiply(temp.conjugate());
 
     return Double3(result.b, result.c, result.d);
+}
+
+Double3 Double3::crossProduct(const Double3 &other) {
+    return Double3(
+            y * other.z - z * other.y,
+            z * other.x - x * other.z,
+            x * other.y - y * other.y
+    );
 }
