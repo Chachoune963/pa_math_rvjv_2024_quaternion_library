@@ -64,10 +64,11 @@ double Quaternion::scalarProduct(const Quaternion &other) {
     return a * other.a + b * other.b + c * other.c + d * other.d;
 }
 
-Quaternion Quaternion::eulerAngles(double rads, double x, double y, double z) {
+Quaternion Quaternion::eulerAngles(double rads, Double3 axis) {
+    Double3 axisUnit = axis.getUnit();
     double angleSin = sin(rads / 2);
 
-    return Quaternion(cos(rads / 2), x * angleSin, y * angleSin, z * angleSin);
+    return Quaternion(cos(rads / 2), axisUnit.x * angleSin, axisUnit.y * angleSin, axisUnit.z * angleSin);
 }
 
 class QuaternionMatrix Quaternion::toMatrix() {
@@ -88,13 +89,8 @@ class RotationMatrix Quaternion::getRotationMatrix() {
     );
 }
 
-double Quaternion::crossProduct(const Quaternion &other) {
-    return Quaternion(
-            b * other.c - c * other.b,
-            c * other.d - d * other.c,
-            d * other.a - a * other.d,
-            a * other.b - b * other.a
-    );
+Double3 Quaternion::crossProduct(const Quaternion &other) {
+    return Double3(b, c, d).crossProduct(Double3(other.b, other.c, other.d));
 }
 
 // ----- MATRIX -----
@@ -224,6 +220,18 @@ Double3::Double3(double x, double y, double z) {
     this->z = z;
 }
 
+Double3 Double3::multiply(double factor) {
+    return {
+            x * factor,
+            y * factor,
+            z * factor
+    };
+}
+
+Double3 Double3::getUnit() {
+    return multiply(1 / getNorm());
+}
+
 Double3 Double3::rotate(const RotationMatrix &matrix) {
     return Double3(
             matrix.a1 * x + matrix.a2 * y + matrix.a3 * z,
@@ -234,6 +242,7 @@ Double3 Double3::rotate(const RotationMatrix &matrix) {
 
 Double3 Double3::rotate(const Quaternion &quaternion) {
     Quaternion temp = quaternion;
+    temp = temp.getUnit();
     Quaternion result = temp.multiply(Quaternion(0, x, y, z)).multiply(temp.conjugate());
 
     return Double3(result.b, result.c, result.d);
@@ -245,4 +254,8 @@ Double3 Double3::crossProduct(const Double3 &other) {
             z * other.x - x * other.z,
             x * other.y - y * other.y
     );
+}
+
+double Double3::getNorm() {
+    return sqrt(x * x + y * y + z * z);
 }

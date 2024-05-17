@@ -14,9 +14,9 @@ public:
     Quaternion getUnit();
     double getNorm();
     double scalarProduct(const Quaternion& other);
-    double crossProduct(const Quaternion& other);
+    class Double3 crossProduct(const Quaternion& other);
 
-    static Quaternion eulerAngles(double rads, double x, double y, double z);
+    static Quaternion eulerAngles(double rads, Double3 axis);
 
     class QuaternionMatrix toMatrix();
     class RotationMatrix getRotationMatrix();
@@ -72,10 +72,15 @@ public:
     Double3();
     Double3(double x, double y, double z);
 
+    Double3 multiply(double x);
+
+    Double3 getUnit();
     Double3 rotate(const class RotationMatrix& matrix);
     Double3 rotate(const class Quaternion& quaternion);
 
     Double3 crossProduct(const Double3& other);
+
+    double getNorm();
 };
 
 #endif //QUATERNION_LIBRARY_H
