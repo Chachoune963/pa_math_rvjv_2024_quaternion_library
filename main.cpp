@@ -116,8 +116,8 @@ void applyRotationWithQuaternion(Quaternion& q, GLfloat* vertices, int vertexCou
         Double3 vertex(vertices[i], vertices[i + 1], vertices[i + 2]);
         Double3 rotatedVertex = vertex.rotate(q);
         vertices[i] = rotatedVertex.x;
-        vertices[i + 1] = rotatedVertex.y;
-        vertices[i + 2] = rotatedVertex.z;
+        vertices[i + 1] = rotatedVertex.z;
+        vertices[i + 2] = rotatedVertex.y;
     }
 }
 
@@ -212,8 +212,8 @@ int main() {
     }
 
     // NOTE: Define basic quaternions for rotations
-    Quaternion q1 = Quaternion::eulerAngles(M_PI / 4, 1, 0, 0); // 45-degree rotation around x-axis
-    Quaternion q2 = Quaternion::eulerAngles(M_PI / 4, 0, 1, 0); // 45-degree rotation around y-axis
+    Quaternion q1 = Quaternion::eulerAngles(0, Double3(1, 0, 0));
+    Quaternion q2 = Quaternion::eulerAngles(0, Double3(1, 0, 0));
 
     GLfloat matrix1[16] = {
             1, 0, 0, 0,
@@ -245,7 +245,7 @@ int main() {
         float timeValue = (float)glfwGetTime();
         float angle = timeValue * M_PI / 4; // NOTE: Rotate 45 degrees per second
 
-        Quaternion q_rotation = Quaternion::eulerAngles(angle, 1, 1, 0);
+        Quaternion q_rotation = Quaternion::eulerAngles(angle, Double3(1, 0, 0));
 
         // NOTE: Compose rotations
         Quaternion q_composed = q1.multiply(q_rotation).multiply(q2).getUnit();
