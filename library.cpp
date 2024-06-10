@@ -246,7 +246,7 @@ Double3 Double3::rotate(const RotationMatrix &matrix) {
 
 Double3 Double3::rotate(const Quaternion &quaternion, Double3 origin) {
     // Changer d'origine
-    Double3 tempPoint = Double3(x - origin.x, y - origin.y, z - origin.z);
+    Double3 tempPoint = Double3(x - origin.x, y - origin.z, z - origin.y);
 
     // Calcul du résultat
     Quaternion temp = quaternion;

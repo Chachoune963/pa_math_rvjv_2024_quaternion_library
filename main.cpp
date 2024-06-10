@@ -211,10 +211,6 @@ int main() {
         glBindVertexArray(0);
     }
 
-    // NOTE: Define basic quaternions for rotations
-    Quaternion q1 = Quaternion::eulerAngles(0, Double3(1, 0, 0));
-    Quaternion q2 = Quaternion::eulerAngles(0, Double3(1, 0, 0));
-
     GLfloat matrix1[16] = {
             1, 0, 0, 0,
             0, 1, 0, 0,
@@ -280,18 +276,19 @@ int main() {
         Quaternion q_rotation = Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)).multiply(Quaternion::eulerAngles(cameraYaw, Double3(0, 1, 0)));
 
         // NOTE: Compose rotations
-        Quaternion q_composed = q1.multiply(q_rotation).multiply(q2).getUnit();
+        Quaternion q_composed = q_rotation.getUnit();
 
         // NOTE: Reset vertices to original before applying the rotation
         memcpy(vertices, originalVertices, sizeof(vertices));
 
         // NOTE: Apply rotations
-        applyRotationWithQuaternion(q_composed, vertices, sizeof(vertices) / sizeof(vertices[0]), Double3(2 + cameraTranslation.x, cameraTranslation.y, cameraTranslation.z));
-        printf("%lf %lf %lf\n", cameraTranslation.x, cameraTranslation.y, cameraTranslation.z);
+        // Why TF do I need to invert the base coordinates???
+        // Doesn't matter... It just works.
+        applyRotationWithQuaternion(q_composed, vertices, sizeof(vertices) / sizeof(vertices[0]), Double3(-cameraTranslation.x, 5 - cameraTranslation.z, -cameraTranslation.y));
 //        applyRotationWithMatrix(q_composed, matrix2);
 
         // NOTE: Apply translations
-        applyTranslation(-2.0f, 0.0f, .0f, matrix1); // NOTE: Move left cube (quaternion) to the left
+        applyTranslation(.0f, 0.0f, -5.0f, matrix1); // NOTE: Move left cube (quaternion) to the left
 //        applyTranslation(cameraTranslation.x + 2.0f, cameraTranslation.y + 0.0f, cameraTranslation.z + .0f, matrix2);  // NOTE: Move right cube (matrix) to the right
 
         // NOTE: Print matrices and vertices for debugging
