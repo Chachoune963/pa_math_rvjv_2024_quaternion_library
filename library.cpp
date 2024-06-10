@@ -244,12 +244,17 @@ Double3 Double3::rotate(const RotationMatrix &matrix) {
     );
 }
 
-Double3 Double3::rotate(const Quaternion &quaternion) {
+Double3 Double3::rotate(const Quaternion &quaternion, Double3 origin) {
+    // Changer d'origine
+    Double3 tempPoint = Double3(x - origin.x, y - origin.y, z - origin.z);
+
+    // Calcul du résultat
     Quaternion temp = quaternion;
     temp = temp.getUnit();
-    Quaternion result = temp.multiply(Quaternion(0, x, y, z)).multiply(temp.conjugate());
+    Quaternion result = temp.multiply(Quaternion(0, tempPoint.x, tempPoint.y, tempPoint.z)).multiply(temp.conjugate());
 
-    return Double3(result.b, result.d, result.c);
+    // Remettre à l'origine
+    return Double3(result.b + origin.x, result.d + origin.y, result.c + origin.z);
 }
 
 Double3 Double3::crossProduct(const Double3 &other) {

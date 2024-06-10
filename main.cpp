@@ -111,10 +111,10 @@ GLuint createProgram(GLuint vertexShader, GLuint fragmentShader) {
     return program;
 }
 
-void applyRotationWithQuaternion(Quaternion& q, GLfloat* vertices, int vertexCount) {
+void applyRotationWithQuaternion(Quaternion& q, GLfloat* vertices, int vertexCount, Double3 origin = Double3(0, 0, 0)) {
     for (int i = 0; i < vertexCount; i += 3) {
         Double3 vertex(vertices[i], vertices[i + 1], vertices[i + 2]);
-        Double3 rotatedVertex = vertex.rotate(q);
+        Double3 rotatedVertex = vertex.rotate(q, origin);
         vertices[i] = rotatedVertex.x;
         vertices[i + 1] = rotatedVertex.z;
         vertices[i + 2] = rotatedVertex.y;
@@ -240,6 +240,8 @@ int main() {
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 
     Double3 cameraTranslation = Double3(0, 0, 0);
+    float cameraPitch = 0;
+    float cameraYaw = 0;
 
     // NOTE: Loop until the user closes the window or press esc
     float timeValue;
@@ -249,8 +251,6 @@ int main() {
         timeValue = (float)glfwGetTime();
         float deltaTime = timeValue - previousTime;
         float angle = timeValue * M_PI / 4; // NOTE: Rotate 45 degrees per second
-
-        Quaternion q_rotation = Quaternion::eulerAngles(angle, Double3(0, 1, 0));
 
         // Camera Controls
         // Movement
@@ -267,6 +267,18 @@ int main() {
         if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
             cameraTranslation.y -= 1 * deltaTime;
 
+        // Rotation
+        if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
+            cameraPitch -= M_PI * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
+            cameraPitch += M_PI * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
+            cameraYaw += M_PI * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
+            cameraYaw -= M_PI * deltaTime;
+
+        Quaternion q_rotation = Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)).multiply(Quaternion::eulerAngles(cameraYaw, Double3(0, 1, 0)));
+
         // NOTE: Compose rotations
         Quaternion q_composed = q1.multiply(q_rotation).multiply(q2).getUnit();
 
@@ -274,12 +286,13 @@ int main() {
         memcpy(vertices, originalVertices, sizeof(vertices));
 
         // NOTE: Apply rotations
-        applyRotationWithQuaternion(q_composed, vertices, sizeof(vertices) / sizeof(vertices[0]));
-        applyRotationWithMatrix(q_composed, matrix2);
+        applyRotationWithQuaternion(q_composed, vertices, sizeof(vertices) / sizeof(vertices[0]), Double3(2 + cameraTranslation.x, cameraTranslation.y, cameraTranslation.z));
+        printf("%lf %lf %lf\n", cameraTranslation.x, cameraTranslation.y, cameraTranslation.z);
+//        applyRotationWithMatrix(q_composed, matrix2);
 
         // NOTE: Apply translations
-        applyTranslation(cameraTranslation.x - 2.0f, cameraTranslation.y + 0.0f, cameraTranslation.z + .0f, matrix1); // NOTE: Move left cube (quaternion) to the left
-        applyTranslation(cameraTranslation.x + 2.0f, cameraTranslation.y + 0.0f, cameraTranslation.z + .0f, matrix2);  // NOTE: Move right cube (matrix) to the right
+        applyTranslation(-2.0f, 0.0f, .0f, matrix1); // NOTE: Move left cube (quaternion) to the left
+//        applyTranslation(cameraTranslation.x + 2.0f, cameraTranslation.y + 0.0f, cameraTranslation.z + .0f, matrix2);  // NOTE: Move right cube (matrix) to the right
 
         // NOTE: Print matrices and vertices for debugging
         // printMatrix(matrix1, "Matrix1 (Cube Left)");
@@ -305,14 +318,14 @@ int main() {
 
         // NOTE: Pass them to the shaders
         glUniformMatrix4fv(modelLoc1, 1, GL_FALSE, matrix1);
-        glUniformMatrix4fv(modelLoc2, 1, GL_FALSE, matrix2);
+//        glUniformMatrix4fv(modelLoc2, 1, GL_FALSE, matrix2);
 
         // NOTE: Camera/View transformation
         GLfloat view[16] = {
                 1, 0, 0, 0,
                 0, 1, 0, 0,
                 0, 0, 1, 0,
-                0, 0, -5, 1
+                (GLfloat)cameraTranslation.x, (GLfloat)cameraTranslation.y, (GLfloat)cameraTranslation.z, 1
         };
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
 

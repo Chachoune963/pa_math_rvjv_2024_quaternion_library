@@ -76,7 +76,7 @@ public:
 
     Double3 getUnit();
     Double3 rotate(const class RotationMatrix& matrix);
-    Double3 rotate(const class Quaternion& quaternion);
+    Double3 rotate(const class Quaternion& quaternion, Double3 origin = Double3(0, 0, 0));
 
     Double3 crossProduct(const Double3& other);
 
