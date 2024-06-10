@@ -239,13 +239,33 @@ int main() {
     // NOTE: Ensure we can capture keys being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
 
+    Double3 cameraTranslation = Double3(0, 0, 0);
+
     // NOTE: Loop until the user closes the window or press esc
+    float timeValue;
     while (!glfwWindowShouldClose(window) && glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
         // NOTE: Calculate the angle of rotation based on time
-        float timeValue = (float)glfwGetTime();
+        float previousTime = timeValue;
+        timeValue = (float)glfwGetTime();
+        float deltaTime = timeValue - previousTime;
         float angle = timeValue * M_PI / 4; // NOTE: Rotate 45 degrees per second
 
-        Quaternion q_rotation = Quaternion::eulerAngles(angle, Double3(1, 0, 0));
+        Quaternion q_rotation = Quaternion::eulerAngles(angle, Double3(0, 1, 0));
+
+        // Camera Controls
+        // Movement
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            cameraTranslation.z += 1 * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            cameraTranslation.z -= 1 * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            cameraTranslation.x += 1 * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            cameraTranslation.x -= 1 * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+            cameraTranslation.y += 1 * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+            cameraTranslation.y -= 1 * deltaTime;
 
         // NOTE: Compose rotations
         Quaternion q_composed = q1.multiply(q_rotation).multiply(q2).getUnit();
@@ -258,8 +278,8 @@ int main() {
         applyRotationWithMatrix(q_composed, matrix2);
 
         // NOTE: Apply translations
-        applyTranslation(-2.0f, 0.0f, 0.0f, matrix1); // NOTE: Move left cube (quaternion) to the left
-        applyTranslation(2.0f, 0.0f, 0.0f, matrix2);  // NOTE: Move right cube (matrix) to the right
+        applyTranslation(cameraTranslation.x - 2.0f, cameraTranslation.y + 0.0f, cameraTranslation.z + .0f, matrix1); // NOTE: Move left cube (quaternion) to the left
+        applyTranslation(cameraTranslation.x + 2.0f, cameraTranslation.y + 0.0f, cameraTranslation.z + .0f, matrix2);  // NOTE: Move right cube (matrix) to the right
 
         // NOTE: Print matrices and vertices for debugging
         // printMatrix(matrix1, "Matrix1 (Cube Left)");

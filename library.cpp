@@ -82,6 +82,10 @@ class QuaternionMatrix Quaternion::toMatrix() {
 
 class RotationMatrix Quaternion::getRotationMatrix() {
     Quaternion unit = getUnit();
+
+    // To get consistent results with quaternions (Apparently it's inverted?)
+    unit.c *= -1;
+
     return RotationMatrix(
             1 - 2*unit.c*unit.c - 2*unit.d*unit.d, 2*unit.b*unit.c - 2*unit.d*unit.a, 2*unit.b*unit.d + 2*unit.c*unit.a,
             2*unit.b*unit.c + 2*unit.d*unit.a, 1 - 2*unit.b*unit.b - 2*unit.d*unit.d, 2*unit.c*unit.d - 2*unit.b*unit.a,
@@ -245,7 +249,7 @@ Double3 Double3::rotate(const Quaternion &quaternion) {
     temp = temp.getUnit();
     Quaternion result = temp.multiply(Quaternion(0, x, y, z)).multiply(temp.conjugate());
 
-    return Double3(result.b, result.c, result.d);
+    return Double3(result.b, result.d, result.c);
 }
 
 Double3 Double3::crossProduct(const Double3 &other) {
