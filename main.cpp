@@ -6,6 +6,7 @@
 #include "library.h"
 
 const GLint WINDOW_WIDTH = 800, WINDOW_HEIGHT = 600;
+const GLfloat MOUSE_SENSITIVITY = .001f;
 
 // NOTE: Vertex Shader source code
 const char* vertexShaderSource = R"(
@@ -163,8 +164,8 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos)
     double xDiff = xpos - xOrigin;
     double yDiff = ypos - yOrigin;
 
-    cameraYaw += xDiff * .01f;
-    cameraPitch += yDiff * .01f;
+    cameraYaw += xDiff * MOUSE_SENSITIVITY;
+    cameraPitch += yDiff * MOUSE_SENSITIVITY;
 }
 
 int main() {
@@ -249,6 +250,7 @@ int main() {
 
     // NOTE: Ensure we can capture keys being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     glfwSetCursorPosCallback(window, mouseCallback);
 
     Double3 cameraTranslation = Double3(0, 0, 0);
