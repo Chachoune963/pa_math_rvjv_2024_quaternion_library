@@ -138,7 +138,7 @@ GLuint createProgram(GLuint vertexShader, GLuint fragmentShader) {
 }
 
 void applyRotationWithQuaternion(Quaternion& q, GLfloat* vertices, int vertexCount, Double3 origin = Double3(0, 0, 0)) {
-    for (int i = 0; i < vertexCount; i += 3) {
+    for (int i = 0; i < vertexCount; i += 6) {
         Double3 vertex(vertices[i], vertices[i + 1], vertices[i + 2]);
         Double3 rotatedVertex = vertex.rotate(q, origin);
         vertices[i] = rotatedVertex.x;
@@ -444,6 +444,10 @@ int main() {
         // NOTE: Apply translations
         applyTranslation(0.0f, 0.0f, -5.0f, matrix1);
         applyTranslation(cameraTranslation.x + 2.0f, cameraTranslation.y + 0.0f, cameraTranslation.z + 0.0f, modelMatrix);
+
+        // NOTE: Update the vertices of the left cube
+        glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
         // NOTE: Clear the colorbuffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
