@@ -78,6 +78,9 @@ GLuint indices[] = {
         20, 21, 22, 22, 23, 20  // NOTE: Left face
 };
 
+float cameraPitch = 0;
+float cameraYaw = 0;
+
 GLuint createShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, NULL);
@@ -150,6 +153,18 @@ void printVertices(const GLfloat* vertices, int vertexCount) {
     for (int i = 0; i < vertexCount; i += 3) {
         printf("%f %f %f\n", vertices[i], vertices[i + 1], vertices[i + 2]);
     }
+}
+
+void mouseCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    double xOrigin = WINDOW_WIDTH / 2;
+    double yOrigin = WINDOW_HEIGHT / 2;
+
+    double xDiff = xpos - xOrigin;
+    double yDiff = ypos - yOrigin;
+
+    cameraYaw += xDiff * .01f;
+    cameraPitch += yDiff * .01f;
 }
 
 int main() {
@@ -234,36 +249,37 @@ int main() {
 
     // NOTE: Ensure we can capture keys being pressed below
     glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+    glfwSetCursorPosCallback(window, mouseCallback);
 
     Double3 cameraTranslation = Double3(0, 0, 0);
-    float cameraPitch = 0;
-    float cameraYaw = 0;
+
+    bool centeredCamera = false;
+    Double3 centerPosition = Double3(0, 0, 0);
+    float centeredOffset = 5;
 
     // NOTE: Loop until the user closes the window or press esc
     float timeValue;
     while (!glfwWindowShouldClose(window) && glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
+        glfwSetCursorPos(window, WINDOW_WIDTH / 2,  WINDOW_HEIGHT / 2);
+
         // NOTE: Calculate the angle of rotation based on time
         float previousTime = timeValue;
         timeValue = (float)glfwGetTime();
         float deltaTime = timeValue - previousTime;
         float angle = timeValue * M_PI / 4; // NOTE: Rotate 45 degrees per second
 
+        Quaternion q_rotation = Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)).multiply(Quaternion::eulerAngles(cameraYaw, Double3(0, 1, 0)));
+        // NOTE: Compose rotations
+        Quaternion q_composed = q_rotation.getUnit();
+
         // Camera Controls
-        // Movement
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            cameraTranslation.z += 1 * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            cameraTranslation.z -= 1 * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            cameraTranslation.x += 1 * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            cameraTranslation.x -= 1 * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-            cameraTranslation.y += 1 * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-            cameraTranslation.y -= 1 * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+            centeredCamera = true;
+        if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
+            centeredCamera = false;
 
         // Rotation
+        // Even if mouse support was added, keep this for eventual debug purposes
         if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
             cameraPitch -= M_PI * deltaTime;
         if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
@@ -273,10 +289,43 @@ int main() {
         if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
             cameraYaw -= M_PI * deltaTime;
 
-        Quaternion q_rotation = Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)).multiply(Quaternion::eulerAngles(cameraYaw, Double3(0, 1, 0)));
-
+        Quaternion q_rotationCamera = Quaternion::eulerAngles(cameraYaw, Double3(0, 0, 1)).multiply(Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)));
         // NOTE: Compose rotations
-        Quaternion q_composed = q_rotation.getUnit();
+        Quaternion q_composedCamera = q_rotationCamera.getUnit();
+
+        if (centeredCamera)
+        {
+            // Centered Movement
+            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+                centeredOffset -= 1 * deltaTime;
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+                centeredOffset += 1 * deltaTime;
+
+            cameraTranslation = Double3(0, -centeredOffset, 0);
+            cameraTranslation = cameraTranslation.rotate(q_composedCamera);
+            cameraTranslation = cameraTranslation.add(centerPosition);
+        } else {
+            Double3 forwardVector = Double3(0, 1, 0).rotate(q_composedCamera);
+            Double3 rightVector = Double3(1, 0, 0).rotate(q_composedCamera);
+            Double3 upVector = Double3(0, 0, 1).rotate(q_composedCamera);
+
+            // Movement
+            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+                cameraTranslation = cameraTranslation.add(forwardVector.multiply(deltaTime));
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+                cameraTranslation = cameraTranslation.subtract(forwardVector.multiply(deltaTime));
+            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+                cameraTranslation = cameraTranslation.add(rightVector.multiply(deltaTime));
+            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+                cameraTranslation = cameraTranslation.subtract(rightVector.multiply(deltaTime));
+            if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+                cameraTranslation = cameraTranslation.add(upVector.multiply(deltaTime));
+            if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+                cameraTranslation = cameraTranslation.subtract(upVector.multiply(deltaTime));
+        }
+
+        // Clamp vertical rotation between -90° and 90°
+        cameraPitch = fmin(fmax(- M_PI / 2, cameraPitch), M_PI / 2);
 
         // NOTE: Reset vertices to original before applying the rotation
         memcpy(vertices, originalVertices, sizeof(vertices));
@@ -288,7 +337,7 @@ int main() {
 //        applyRotationWithMatrix(q_composed, matrix2);
 
         // NOTE: Apply translations
-        applyTranslation(.0f, 0.0f, -5.0f, matrix1); // NOTE: Move left cube (quaternion) to the left
+        applyTranslation(.0f, 0.0f, -5.0f, matrix1);
 //        applyTranslation(cameraTranslation.x + 2.0f, cameraTranslation.y + 0.0f, cameraTranslation.z + .0f, matrix2);  // NOTE: Move right cube (matrix) to the right
 
         // NOTE: Print matrices and vertices for debugging

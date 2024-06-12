@@ -224,6 +224,14 @@ Double3::Double3(double x, double y, double z) {
     this->z = z;
 }
 
+Double3 Double3::add(const Double3 &other) {
+    return Double3(x + other.x, y + other.y, z + other.z);
+}
+
+Double3 Double3::subtract(const Double3 &other) {
+    return Double3(x - other.x, y - other.y, z - other.z);
+}
+
 Double3 Double3::multiply(double factor) {
     return {
             x * factor,

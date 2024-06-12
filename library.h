@@ -72,6 +72,8 @@ public:
     Double3();
     Double3(double x, double y, double z);
 
+    Double3 add(const Double3& other);
+    Double3 subtract(const Double3& other);
     Double3 multiply(double x);
 
     Double3 getUnit();
