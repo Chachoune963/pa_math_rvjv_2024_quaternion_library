@@ -239,6 +239,10 @@ int main() {
     float cameraPitch = 0;
     float cameraYaw = 0;
 
+    bool centeredCamera = false;
+    Double3 centerPosition = Double3(0, 0, 0);
+    float centeredOffset = 5;
+
     // NOTE: Loop until the user closes the window or press esc
     float timeValue;
     while (!glfwWindowShouldClose(window) && glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS) {
@@ -248,20 +252,15 @@ int main() {
         float deltaTime = timeValue - previousTime;
         float angle = timeValue * M_PI / 4; // NOTE: Rotate 45 degrees per second
 
+        Quaternion q_rotation = Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)).multiply(Quaternion::eulerAngles(cameraYaw, Double3(0, 1, 0)));
+        // NOTE: Compose rotations
+        Quaternion q_composed = q_rotation.getUnit();
+
         // Camera Controls
-        // Movement
-        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            cameraTranslation.z += 1 * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            cameraTranslation.z -= 1 * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            cameraTranslation.x += 1 * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            cameraTranslation.x -= 1 * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-            cameraTranslation.y += 1 * deltaTime;
-        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-            cameraTranslation.y -= 1 * deltaTime;
+        if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
+            centeredCamera = true;
+        if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS)
+            centeredCamera = false;
 
         // Rotation
         if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
@@ -273,10 +272,38 @@ int main() {
         if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
             cameraYaw -= M_PI * deltaTime;
 
-        Quaternion q_rotation = Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)).multiply(Quaternion::eulerAngles(cameraYaw, Double3(0, 1, 0)));
+        if (centeredCamera)
+        {
+            // Centered Movement
+            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+                centeredOffset -= 1 * deltaTime;
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+                centeredOffset += 1 * deltaTime;
 
-        // NOTE: Compose rotations
-        Quaternion q_composed = q_rotation.getUnit();
+            cameraTranslation = Double3(0, -centeredOffset, 0);
+            Quaternion q_rotationCamera = Quaternion::eulerAngles(cameraYaw, Double3(0, 0, 1)).multiply(Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)));
+            // NOTE: Compose rotations
+            Quaternion q_composedCamera = q_rotationCamera.getUnit();
+            cameraTranslation = cameraTranslation.rotate(q_composedCamera);
+            cameraTranslation = cameraTranslation.add(centerPosition);
+        } else {
+            // Movement
+            if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+                cameraTranslation.z += 1 * deltaTime;
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+                cameraTranslation.z -= 1 * deltaTime;
+            if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+                cameraTranslation.x += 1 * deltaTime;
+            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+                cameraTranslation.x -= 1 * deltaTime;
+            if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+                cameraTranslation.y += 1 * deltaTime;
+            if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+                cameraTranslation.y -= 1 * deltaTime;
+        }
+
+        // Clamp vertical rotation between -90° and 90°
+        cameraPitch = fmin(fmax(- M_PI / 2, cameraPitch), M_PI / 2);
 
         // NOTE: Reset vertices to original before applying the rotation
         memcpy(vertices, originalVertices, sizeof(vertices));
