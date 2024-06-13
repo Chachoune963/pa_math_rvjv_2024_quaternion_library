@@ -2,7 +2,11 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <cmath>
-#include <cstring>
+#include <vector>
+#include <iostream>
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
 #include "library.h"
 
 const GLint WINDOW_WIDTH = 800, WINDOW_HEIGHT = 600;
@@ -12,62 +16,71 @@ const GLfloat MOUSE_SENSITIVITY = .001f;
 const char* vertexShaderSource = R"(
 #version 330 core
 layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 color;
+out vec3 fragColor;
 uniform mat4 model1;
 uniform mat4 model2;
+uniform mat4 model3;
 uniform mat4 view;
 uniform mat4 projection;
 uniform int useMatrix; // NOTE: 0 for quaternion, 1 for matrix
 void main() {
     if (useMatrix == 0) {
         gl_Position = projection * view * model1 * vec4(position, 1.0);
-    } else {
+    } else if (useMatrix == 1) {
         gl_Position = projection * view * model2 * vec4(position, 1.0);
+    } else {
+        gl_Position = projection * view * model3 * vec4(position, 1.0);
     }
+    fragColor = color;
 }
 )";
 
 // NOTE: Fragment Shader source code
 const char* fragmentShaderSource = R"(
 #version 330 core
+in vec3 fragColor;
 out vec4 color;
 void main() {
-    color = vec4(1.0, 1.0, 1.0, 1.0);
+    color = vec4(fragColor, 1.0);
 }
 )";
 
 // NOTE: Cube vertices
 GLfloat vertices[] = {
+        // The first three: Positions         The last three: Colours
         // NOTE: Front face
-        -1.0f, -1.0f,  1.0f,
-        1.0f, -1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
+        -1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
+        -1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
         // NOTE: Back face
-        -1.0f, -1.0f, -1.0f,
-        -1.0f,  1.0f, -1.0f,
-        1.0f,  1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
+        -1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
+        -1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
         // NOTE: Top face
-        -1.0f,  1.0f, -1.0f,
-        -1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f,  1.0f, -1.0f,
+        -1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
+        -1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
         // NOTE: Bottom face
-        -1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f, -1.0f,
-        1.0f, -1.0f,  1.0f,
-        -1.0f, -1.0f,  1.0f,
+        -1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
+        -1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
         // NOTE: Right face
-        1.0f, -1.0f, -1.0f,
-        1.0f,  1.0f, -1.0f,
-        1.0f,  1.0f,  1.0f,
-        1.0f, -1.0f,  1.0f,
+        1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
+        1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
         // NOTE: Left face
-        -1.0f, -1.0f, -1.0f,
-        -1.0f, -1.0f,  1.0f,
-        -1.0f,  1.0f,  1.0f,
-        -1.0f,  1.0f, -1.0f
+        -1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
+        -1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
+        -1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
+        -1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f
 };
+
 
 // NOTE: Cube indices
 GLuint indices[] = {
@@ -81,6 +94,14 @@ GLuint indices[] = {
 
 float cameraPitch = 0;
 float cameraYaw = 0;
+
+struct Vertex {
+    GLfloat position[3];
+    GLfloat color[3];
+};
+
+std::vector<Vertex> modelVertices;
+std::vector<GLuint> modelIndices;
 
 GLuint createShader(GLenum type, const char* source) {
     GLuint shader = glCreateShader(type);
@@ -116,13 +137,32 @@ GLuint createProgram(GLuint vertexShader, GLuint fragmentShader) {
 }
 
 void applyRotationWithQuaternion(Quaternion& q, GLfloat* vertices, int vertexCount, Double3 origin = Double3(0, 0, 0)) {
-    for (int i = 0; i < vertexCount; i += 3) {
+    for (int i = 0; i < vertexCount; i += 6) {
         Double3 vertex(vertices[i], vertices[i + 1], vertices[i + 2]);
         Double3 rotatedVertex = vertex.rotate(q, origin);
         vertices[i] = rotatedVertex.x;
         vertices[i + 1] = rotatedVertex.z;
         vertices[i + 2] = rotatedVertex.y;
     }
+}
+
+std::vector<Vertex> applyRotationWithQuaternion(Quaternion& q, std::vector<Vertex> vertices, Double3 origin = Double3(0, 0, 0)) {
+    std::vector<Vertex> newVector;
+    for (int i = 0; i < vertices.size(); ++i)
+    {
+        Double3 vertex(vertices[i].position[0], vertices[i].position[1], vertices[i].position[2]);
+        Double3 rotatedVertex = vertex.rotate(q, origin);
+        Vertex newVertex;
+        newVertex.position[0] = rotatedVertex.x;
+        newVertex.position[1] = rotatedVertex.z;
+        newVertex.position[2] = rotatedVertex.y;
+        newVertex.color[0] = vertices[i].color[0];
+        newVertex.color[1] = vertices[i].color[1];
+        newVertex.color[2] = vertices[i].color[2];
+        newVector.push_back(newVertex);
+    }
+
+    return newVector;
 }
 
 void applyRotationWithMatrix(Quaternion& q, GLfloat* matrix) {
@@ -168,6 +208,57 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos)
     cameraPitch += yDiff * MOUSE_SENSITIVITY;
 }
 
+void processMesh(aiMesh* mesh, const aiScene* scene) {
+    aiColor4D color;
+    if (mesh->mMaterialIndex >= 0) {
+        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+        aiGetMaterialColor(material, AI_MATKEY_COLOR_DIFFUSE, &color);
+    } else {
+        color = aiColor4D(1.0f, 1.0f, 1.0f, 1.0f); // Default to white if no material
+    }
+
+    for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
+        Vertex vertex;
+        vertex.position[0] = mesh->mVertices[i].x;
+        vertex.position[1] = mesh->mVertices[i].y;
+        vertex.position[2] = mesh->mVertices[i].z;
+
+        vertex.color[0] = color.r;
+        vertex.color[1] = color.g;
+        vertex.color[2] = color.b;
+
+        modelVertices.push_back(vertex);
+    }
+    for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+        aiFace face = mesh->mFaces[i];
+        for (unsigned int j = 0; j < face.mNumIndices; j++) {
+            modelIndices.push_back(face.mIndices[j]);
+        }
+    }
+}
+
+void processNode(aiNode* node, const aiScene* scene) {
+    for (unsigned int i = 0; i < node->mNumMeshes; i++) {
+        aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+        processMesh(mesh, scene);
+    }
+    for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        processNode(node->mChildren[i], scene);
+    }
+}
+
+void loadModel(const std::string& path) {
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        std::cerr << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
+        return;
+    }
+
+    processNode(scene->mRootNode, scene);
+}
+
 int main() {
     // NOTE: Initialize GLFW
     if (!glfwInit()) {
@@ -198,6 +289,13 @@ int main() {
         return -1;
     }
 
+    // NOTE: Define the model path
+    std::string modelPath = "/Users/michaelattal/Developments/esgi/projet_annuel/3eme_annee/pa_math_rvjv_2024_quaternion_library/landscape.fbx";
+    std::cout << "Attempting to load model from path: " << modelPath << std::endl;
+
+    // NOTE: Load the model
+    loadModel(modelPath);
+
     // NOTE: Build and compile shaders
     GLuint vertexShader = createShader(GL_VERTEX_SHADER, vertexShaderSource);
     GLuint fragmentShader = createShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
@@ -206,11 +304,12 @@ int main() {
     glDeleteShader(fragmentShader);
 
     // NOTE: Setup cube VAO and VBO
-    GLuint VAO[2], VBO[2], EBO[2];
-    glGenVertexArrays(2, VAO);
-    glGenBuffers(2, VBO);
-    glGenBuffers(2, EBO);
+    GLuint VAO[3], VBO[3], EBO[3];
+    glGenVertexArrays(3, VAO);
+    glGenBuffers(3, VBO);
+    glGenBuffers(3, EBO);
 
+    // Setup Cube
     for (int i = 0; i < 2; ++i) {
         glBindVertexArray(VAO[i]);
 
@@ -220,12 +319,31 @@ int main() {
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[i]);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), (GLvoid*)0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
         glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
+        glEnableVertexAttribArray(1);
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
     }
+
+    // Setup Model
+    glBindVertexArray(VAO[2]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
+    glBufferData(GL_ARRAY_BUFFER, modelVertices.size() * sizeof(Vertex), &modelVertices[0], GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[2]);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, modelIndices.size() * sizeof(GLuint), &modelIndices[0], GL_STATIC_DRAW);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, position));
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)offsetof(Vertex, color));
+    glEnableVertexAttribArray(1);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
 
     GLfloat matrix1[16] = {
             1, 0, 0, 0,
@@ -235,6 +353,13 @@ int main() {
     };
 
     GLfloat matrix2[16] = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1
+    };
+
+    GLfloat modelMatrix[16] = {
             1, 0, 0, 0,
             0, 1, 0, 0,
             0, 0, 1, 0,
@@ -281,7 +406,6 @@ int main() {
             centeredCamera = false;
 
         // Rotation
-        // Even if mouse support was added, keep this for eventual debug purposes
         if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
             cameraPitch -= M_PI * deltaTime;
         if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
@@ -327,29 +451,26 @@ int main() {
         }
 
         // Clamp vertical rotation between -90° and 90°
-        cameraPitch = fmin(fmax(- M_PI / 2, cameraPitch), M_PI / 2);
+        cameraPitch = fmin(fmax(-M_PI / 2, cameraPitch), M_PI / 2);
 
         // NOTE: Reset vertices to original before applying the rotation
         memcpy(vertices, originalVertices, sizeof(vertices));
 
         // NOTE: Apply rotations
-        // Why TF do I need to invert the base coordinates???
-        // Doesn't matter... It just works.
         applyRotationWithQuaternion(q_composed, vertices, sizeof(vertices) / sizeof(vertices[0]), Double3(-cameraTranslation.x, 5 - cameraTranslation.z, -cameraTranslation.y));
-//        applyRotationWithMatrix(q_composed, matrix2);
+        std::vector<Vertex> rotatedModelVertices = applyRotationWithQuaternion(q_composed, modelVertices, Double3(-2 -cameraTranslation.x, -cameraTranslation.z, 1 -cameraTranslation.y));
 
         // NOTE: Apply translations
-        applyTranslation(.0f, 0.0f, -5.0f, matrix1);
-//        applyTranslation(cameraTranslation.x + 2.0f, cameraTranslation.y + 0.0f, cameraTranslation.z + .0f, matrix2);  // NOTE: Move right cube (matrix) to the right
-
-        // NOTE: Print matrices and vertices for debugging
-        // printMatrix(matrix1, "Matrix1 (Cube Left)");
-        // printMatrix(matrix2, "Matrix2 (Cube Right)");
-        // printVertices(vertices, sizeof(vertices) / sizeof(vertices[0]));
+        applyTranslation(0.0f, 0.0f, -5.0f, matrix1);
+        applyTranslation(2.0f, -1.0f, 0.0f, modelMatrix);
 
         // NOTE: Update the vertices of the left cube
         glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+        // Update the vertices of the tree model
+        glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
+        glBufferData(GL_ARRAY_BUFFER, rotatedModelVertices.size() * sizeof(Vertex), &rotatedModelVertices[0], GL_STATIC_DRAW);
 
         // NOTE: Clear the colorbuffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -360,13 +481,14 @@ int main() {
         // NOTE: Get matrix's uniform location and set matrix
         GLuint modelLoc1 = glGetUniformLocation(shaderProgram, "model1");
         GLuint modelLoc2 = glGetUniformLocation(shaderProgram, "model2");
+        GLuint modelLoc3 = glGetUniformLocation(shaderProgram, "model3");
         GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
         GLuint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
         GLuint useMatrixLoc = glGetUniformLocation(shaderProgram, "useMatrix");
 
         // NOTE: Pass them to the shaders
         glUniformMatrix4fv(modelLoc1, 1, GL_FALSE, matrix1);
-//        glUniformMatrix4fv(modelLoc2, 1, GL_FALSE, matrix2);
+        glUniformMatrix4fv(modelLoc3, 1, GL_FALSE, modelMatrix);
 
         // NOTE: Camera/View transformation
         GLfloat view[16] = {
@@ -396,6 +518,11 @@ int main() {
         glBindVertexArray(VAO[1]);
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 
+        // NOTE: Draw the model
+        glUniform1i(useMatrixLoc, 2);
+        glBindVertexArray(VAO[2]);
+        glDrawElements(GL_TRIANGLES, modelIndices.size(), GL_UNSIGNED_INT, 0);
+
         glBindVertexArray(0);
 
         // NOTE: Swap the screen buffers
@@ -406,7 +533,7 @@ int main() {
     }
 
     // NOTE: Properly de-allocate all resources once they've outlived their purpose
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 3; ++i) {
         glDeleteVertexArrays(1, &VAO[i]);
         glDeleteBuffers(1, &VBO[i]);
         glDeleteBuffers(1, &EBO[i]);
