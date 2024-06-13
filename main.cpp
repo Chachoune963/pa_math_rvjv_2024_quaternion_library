@@ -2,7 +2,6 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <cmath>
-#include <cstring>
 #include <vector>
 #include <iostream>
 #include <assimp/Importer.hpp>
@@ -147,6 +146,25 @@ void applyRotationWithQuaternion(Quaternion& q, GLfloat* vertices, int vertexCou
     }
 }
 
+std::vector<Vertex> applyRotationWithQuaternion(Quaternion& q, std::vector<Vertex> vertices, Double3 origin = Double3(0, 0, 0)) {
+    std::vector<Vertex> newVector;
+    for (int i = 0; i < vertices.size(); ++i)
+    {
+        Double3 vertex(vertices[i].position[0], vertices[i].position[1], vertices[i].position[2]);
+        Double3 rotatedVertex = vertex.rotate(q, origin);
+        Vertex newVertex;
+        newVertex.position[0] = rotatedVertex.x;
+        newVertex.position[1] = rotatedVertex.z;
+        newVertex.position[2] = rotatedVertex.y;
+        newVertex.color[0] = vertices[i].color[0];
+        newVertex.color[1] = vertices[i].color[1];
+        newVertex.color[2] = vertices[i].color[2];
+        newVector.push_back(newVertex);
+    }
+
+    return newVector;
+}
+
 void applyRotationWithMatrix(Quaternion& q, GLfloat* matrix) {
     RotationMatrix quaternionMatrix = q.getRotationMatrix();
     matrix[0] = quaternionMatrix.a1; matrix[1] = quaternionMatrix.a2; matrix[2] = quaternionMatrix.a3;
@@ -272,7 +290,7 @@ int main() {
     }
 
     // NOTE: Define the model path
-    std::string modelPath = "/Users/michaelattal/Developments/esgi/projet_annuel/3eme_annee/pa_math_rvjv_2024_quaternion_library/tree.fbx";
+    std::string modelPath = "/Users/Sacha TOUTUT/pa_math_rvjv_2024_quaternion_library/tree.fbx";
     std::cout << "Attempting to load model from path: " << modelPath << std::endl;
 
     // NOTE: Load the model
@@ -440,14 +458,19 @@ int main() {
 
         // NOTE: Apply rotations
         applyRotationWithQuaternion(q_composed, vertices, sizeof(vertices) / sizeof(vertices[0]), Double3(-cameraTranslation.x, 5 - cameraTranslation.z, -cameraTranslation.y));
+        std::vector<Vertex> rotatedModelVertices = applyRotationWithQuaternion(q_composed, modelVertices, Double3(-2 -cameraTranslation.x, -cameraTranslation.z, 1 -cameraTranslation.y));
 
         // NOTE: Apply translations
         applyTranslation(0.0f, 0.0f, -5.0f, matrix1);
-        applyTranslation(cameraTranslation.x + 2.0f, cameraTranslation.y + 0.0f, cameraTranslation.z + 0.0f, modelMatrix);
+        applyTranslation(2.0f, -1.0f, 0.0f, modelMatrix);
 
         // NOTE: Update the vertices of the left cube
         glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
         glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+        // Update the vertices of the tree model
+        glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
+        glBufferData(GL_ARRAY_BUFFER, rotatedModelVertices.size() * sizeof(Vertex), &rotatedModelVertices[0], GL_STATIC_DRAW);
 
         // NOTE: Clear the colorbuffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
