@@ -457,11 +457,13 @@ int main() {
         memcpy(vertices, originalVertices, sizeof(vertices));
 
         // NOTE: Apply rotations
-        applyRotationWithQuaternion(q_composed, vertices, sizeof(vertices) / sizeof(vertices[0]), Double3(-cameraTranslation.x, 5 - cameraTranslation.z, -cameraTranslation.y));
+        Quaternion cubeAnimationRotation = Quaternion::eulerAngles(angle, {0, 1, 1});
+        applyRotationWithQuaternion(cubeAnimationRotation, vertices, sizeof(vertices) / sizeof(vertices[0]));
+        applyRotationWithQuaternion(q_composed, vertices, sizeof(vertices) / sizeof(vertices[0]), Double3(-cameraTranslation.x, 5 - cameraTranslation.z,  (1 + sin(timeValue)) -cameraTranslation.y));
         std::vector<Vertex> rotatedModelVertices = applyRotationWithQuaternion(q_composed, modelVertices, Double3(-2 -cameraTranslation.x, -cameraTranslation.z, 1 -cameraTranslation.y));
 
         // NOTE: Apply translations
-        applyTranslation(0.0f, 0.0f, -5.0f, matrix1);
+        applyTranslation(0.0f, 1 + sin(timeValue), -5.0f, matrix1);
         applyTranslation(2.0f, -1.0f, 0.0f, modelMatrix);
 
         // NOTE: Update the vertices of the left cube
