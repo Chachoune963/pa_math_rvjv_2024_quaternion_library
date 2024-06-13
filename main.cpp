@@ -290,7 +290,7 @@ int main() {
     }
 
     // NOTE: Define the model path
-    std::string modelPath = "/Users/Sacha TOUTUT/pa_math_rvjv_2024_quaternion_library/tree.fbx";
+    std::string modelPath = "/Users/michaelattal/Developments/esgi/projet_annuel/3eme_annee/pa_math_rvjv_2024_quaternion_library/landscape.fbx";
     std::cout << "Attempting to load model from path: " << modelPath << std::endl;
 
     // NOTE: Load the model
