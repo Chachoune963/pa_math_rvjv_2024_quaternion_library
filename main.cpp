@@ -18,20 +18,9 @@ const char* vertexShaderSource = R"(
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec3 color;
 out vec3 fragColor;
-uniform mat4 model1;
-uniform mat4 model2;
-uniform mat4 model3;
-uniform mat4 view;
-uniform mat4 projection;
-uniform int useMatrix; // NOTE: 0 for quaternion, 1 for matrix
+uniform mat4 model;
 void main() {
-    if (useMatrix == 0) {
-        gl_Position = projection * view * model1 * vec4(position, 1.0);
-    } else if (useMatrix == 1) {
-        gl_Position = projection * view * model2 * vec4(position, 1.0);
-    } else {
-        gl_Position = projection * view * model3 * vec4(position, 1.0);
-    }
+    gl_Position = model * vec4(position, 1.0);
     fragColor = color;
 }
 )";
@@ -129,10 +118,10 @@ void applyRotationWithMatrix(Quaternion& q, GLfloat* matrix) {
     matrix[15] = 1;
 }
 
-void applyTranslation(GLfloat x, GLfloat y, GLfloat z, GLfloat* matrix) {
-    matrix[12] = x;
-    matrix[13] = y;
-    matrix[14] = z;
+void applyTranslation(GLfloat x, GLfloat y, GLfloat z, QuaternionMatrix* matrix) {
+    matrix->d1 = x;
+    matrix->d2 = y;
+    matrix->d3 = z;
 }
 
 void printMatrix(const GLfloat* matrix, const char* name) {
@@ -289,21 +278,7 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    GLfloat matrix1[16] = {
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-    };
-
-    GLfloat matrix2[16] = {
-            1, 0, 0, 0,
-            0, 1, 0, 0,
-            0, 0, 1, 0,
-            0, 0, 0, 1
-    };
-
-    GLfloat modelMatrix[16] = {
+    QuaternionMatrix modelMatrix = {
             1, 0, 0, 0,
             0, 1, 0, 0,
             0, 0, 1, 0,
@@ -398,8 +373,7 @@ int main() {
         std::vector<Vertex> rotatedModelVertices = applyRotationWithQuaternion(q_composed, modelVertices, Double3(-2 -cameraTranslation.x, -cameraTranslation.z, 1 -cameraTranslation.y));
 
         // NOTE: Apply translations
-        applyTranslation(0.0f, 0.0f, -5.0f, matrix1);
-        applyTranslation(2.0f, -1.0f, 0.0f, modelMatrix);
+        applyTranslation(2.0f, -1.0f, 0.0f, &modelMatrix);
 
         // Update the vertices of the tree model
         glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
@@ -412,47 +386,38 @@ int main() {
         glUseProgram(shaderProgram);
 
         // NOTE: Get matrix's uniform location and set matrix
-        GLuint modelLoc1 = glGetUniformLocation(shaderProgram, "model1");
-        GLuint modelLoc2 = glGetUniformLocation(shaderProgram, "model2");
-        GLuint modelLoc3 = glGetUniformLocation(shaderProgram, "model3");
-        GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
-        GLuint projectionLoc = glGetUniformLocation(shaderProgram, "projection");
-        GLuint useMatrixLoc = glGetUniformLocation(shaderProgram, "useMatrix");
-
-        // NOTE: Pass them to the shaders
-        glUniformMatrix4fv(modelLoc1, 1, GL_FALSE, matrix1);
-        glUniformMatrix4fv(modelLoc3, 1, GL_FALSE, modelMatrix);
-
+        GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
         // NOTE: Camera/View transformation
-        GLfloat view[16] = {
+        QuaternionMatrix view = {
                 1, 0, 0, 0,
                 0, 1, 0, 0,
                 0, 0, 1, 0,
                 (GLfloat)cameraTranslation.x, (GLfloat)cameraTranslation.y, (GLfloat)cameraTranslation.z, 1
         };
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
 
         // NOTE: Projection
-        GLfloat projection[16] = {
+        QuaternionMatrix projection = {
                 1, 0, 0, 0,
                 0, 1, 0, 0,
                 0, 0, -1, -1,
                 0, 0, -2, 0
         };
-        glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, projection);
 
-        // NOTE: Draw the cube using quaternion rotations
-        glUniform1i(useMatrixLoc, 0);
-        glBindVertexArray(VAO[0]);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        QuaternionMatrix finalMatrix = modelMatrix.multiply(view).multiply(projection);
 
-        // NOTE: Draw the cube using matrix rotations
-        glUniform1i(useMatrixLoc, 1);
-        glBindVertexArray(VAO[1]);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        GLfloat finalMatrixTab[16]
+        {
+            (float)finalMatrix.a1, (float)finalMatrix.a2, (float)finalMatrix.a3, (float)finalMatrix.a4,
+            (float)finalMatrix.b1, (float)finalMatrix.b2, (float)finalMatrix.b3, (float)finalMatrix.b4,
+            (float)finalMatrix.c1, (float)finalMatrix.c2, (float)finalMatrix.c3, (float)finalMatrix.c4,
+            (float)finalMatrix.d1, (float)finalMatrix.d2, (float)finalMatrix.d3, (float)finalMatrix.d4
+        };
+
+        // NOTE: Pass them to the shaders
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, finalMatrixTab);
+
 
         // NOTE: Draw the model
-        glUniform1i(useMatrixLoc, 2);
         glBindVertexArray(VAO[2]);
         glDrawElements(GL_TRIANGLES, modelIndices.size(), GL_UNSIGNED_INT, 0);
 
