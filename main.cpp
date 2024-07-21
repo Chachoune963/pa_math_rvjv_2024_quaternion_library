@@ -1,13 +1,13 @@
+#define TINYOBJLOADER_IMPLEMENTATION
+
 #include <stdio.h>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <vector>
 #include <iostream>
-#include <assimp/Importer.hpp>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
 #include "library.h"
+#include "tiny_obj_loader.h"
 
 const GLint WINDOW_WIDTH = 800, WINDOW_HEIGHT = 600;
 const GLfloat MOUSE_SENSITIVITY = .001f;
@@ -46,58 +46,14 @@ void main() {
 }
 )";
 
-// NOTE: Cube vertices
-GLfloat vertices[] = {
-        // The first three: Positions         The last three: Colours
-        // NOTE: Front face
-        -1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        -1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        // NOTE: Back face
-        -1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        -1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        // NOTE: Top face
-        -1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        -1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        // NOTE: Bottom face
-        -1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        -1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        // NOTE: Right face
-        1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        // NOTE: Left face
-        -1.0f, -1.0f, -1.0f,  1.0f, 1.0f, 1.0f,
-        -1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        -1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 1.0f,
-        -1.0f,  1.0f, -1.0f,  1.0f, 1.0f, 1.0f
-};
-
-
-// NOTE: Cube indices
-GLuint indices[] = {
-        0, 1, 2, 2, 3, 0,       // NOTE: Front face
-        4, 5, 6, 6, 7, 4,       // NOTE: Back face
-        8, 9, 10, 10, 11, 8,    // NOTE: Top face
-        12, 13, 14, 14, 15, 12, // NOTE: Bottom face
-        16, 17, 18, 18, 19, 16, // NOTE: Right face
-        20, 21, 22, 22, 23, 20  // NOTE: Left face
-};
-
 float cameraPitch = 0;
 float cameraYaw = 0;
 
 struct Vertex {
     GLfloat position[3];
     GLfloat color[3];
+    GLfloat normal[3];
+    GLfloat texcoords[2];
 };
 
 std::vector<Vertex> modelVertices;
@@ -208,55 +164,62 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos)
     cameraPitch += yDiff * MOUSE_SENSITIVITY;
 }
 
-void processMesh(aiMesh* mesh, const aiScene* scene) {
-    aiColor4D color;
-    if (mesh->mMaterialIndex >= 0) {
-        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-        aiGetMaterialColor(material, AI_MATKEY_COLOR_DIFFUSE, &color);
-    } else {
-        color = aiColor4D(1.0f, 1.0f, 1.0f, 1.0f); // Default to white if no material
-    }
+void processShape(tinyobj::shape_t shape, tinyobj::attrib_t attrib, std::vector<tinyobj::material_t> materials) {
 
-    for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
-        Vertex vertex;
-        vertex.position[0] = mesh->mVertices[i].x;
-        vertex.position[1] = mesh->mVertices[i].y;
-        vertex.position[2] = mesh->mVertices[i].z;
+    int index_offset = 0;
+    for (int f = 0; f < shape.mesh.num_face_vertices.size(); ++f)
+    {
+        int fv = shape.mesh.num_face_vertices[f];
+        int mid = shape.mesh.material_ids[f];
 
-        vertex.color[0] = color.r;
-        vertex.color[1] = color.g;
-        vertex.color[2] = color.b;
+        for (int v = 0; v < fv; ++v)
+        {
+            Vertex vertex;
 
-        modelVertices.push_back(vertex);
-    }
-    for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
-        aiFace face = mesh->mFaces[i];
-        for (unsigned int j = 0; j < face.mNumIndices; j++) {
-            modelIndices.push_back(face.mIndices[j]);
+            tinyobj::index_t idx = shape.mesh.indices[index_offset + v];
+            // SET VERTEX POSITION
+            vertex.position[0] = attrib.vertices[3 * idx.vertex_index + 0];
+            vertex.position[1] = attrib.vertices[3 * idx.vertex_index + 1];
+            vertex.position[2] = attrib.vertices[3 * idx.vertex_index + 2];
+
+            // SET VERTEX COLOR
+            vertex.color[0] = materials[mid].diffuse[0];
+            vertex.color[1] = materials[mid].diffuse[1];
+            vertex.color[2] = materials[mid].diffuse[2];
+
+            modelIndices.push_back(modelVertices.size());
+            modelVertices.push_back(vertex);
         }
-    }
-}
 
-void processNode(aiNode* node, const aiScene* scene) {
-    for (unsigned int i = 0; i < node->mNumMeshes; i++) {
-        aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        processMesh(mesh, scene);
+        index_offset += fv;
     }
-    for (unsigned int i = 0; i < node->mNumChildren; i++) {
-        processNode(node->mChildren[i], scene);
-    }
+
+//    for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
+//        aiFace face = mesh->mFaces[i];
+//        for (unsigned int j = 0; j < face.mNumIndices; j++) {
+//            modelIndices.push_back(face.mIndices[j]);
+//        }
+//    }
 }
 
 void loadModel(const std::string& path) {
-    Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+    tinyobj::ObjReaderConfig config;
+    tinyobj::ObjReader importer;
 
-    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        std::cerr << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
-        return;
+    if (!importer.ParseFromFile(path, config))
+    {
+        std::cerr << "TinyObjReader: " << importer.Error() << std::endl;
+        exit(1);
     }
 
-    processNode(scene->mRootNode, scene);
+    auto& attrib = importer.GetAttrib();
+    auto& shapes = importer.GetShapes();
+    auto& materials = importer.GetMaterials();
+
+    printf("%d %d %d", materials[0].diffuse[0], (double)materials[0].diffuse[1], (double)materials[0].diffuse[2]);
+
+    for (int i = 0; i < shapes.size(); ++i)
+        processShape(shapes[i], attrib, materials);
 }
 
 int main() {
@@ -290,7 +253,7 @@ int main() {
     }
 
     // NOTE: Define the model path
-    std::string modelPath = "/Users/michaelattal/Developments/esgi/projet_annuel/3eme_annee/pa_math_rvjv_2024_quaternion_library/landscape.fbx";
+    std::string modelPath = "C:\\Users\\Sacha TOUTUT\\pa_math_rvjv_2024_quaternion_library\\landscape.obj";
     std::cout << "Attempting to load model from path: " << modelPath << std::endl;
 
     // NOTE: Load the model
@@ -308,25 +271,6 @@ int main() {
     glGenVertexArrays(3, VAO);
     glGenBuffers(3, VBO);
     glGenBuffers(3, EBO);
-
-    // Setup Cube
-    for (int i = 0; i < 2; ++i) {
-        glBindVertexArray(VAO[i]);
-
-        glBindBuffer(GL_ARRAY_BUFFER, VBO[i]);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO[i]);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid*)(3 * sizeof(GLfloat)));
-        glEnableVertexAttribArray(1);
-
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
-        glBindVertexArray(0);
-    }
 
     // Setup Model
     glBindVertexArray(VAO[2]);
@@ -365,10 +309,6 @@ int main() {
             0, 0, 1, 0,
             0, 0, 0, 1
     };
-
-    // NOTE: Copy of original vertices for the left cube
-    GLfloat originalVertices[sizeof(vertices) / sizeof(vertices[0])];
-    memcpy(originalVertices, vertices, sizeof(vertices));
 
     // NOTE: Enable depth test
     glEnable(GL_DEPTH_TEST);
@@ -452,23 +392,14 @@ int main() {
 
         // Clamp vertical rotation between -90° and 90°
         cameraPitch = fmin(fmax(-M_PI / 2, cameraPitch), M_PI / 2);
-
-        // NOTE: Reset vertices to original before applying the rotation
-        memcpy(vertices, originalVertices, sizeof(vertices));
-
         // NOTE: Apply rotations
-        Quaternion cubeAnimationRotation = Quaternion::eulerAngles(angle, {0, 1, 1});
-        applyRotationWithQuaternion(cubeAnimationRotation, vertices, sizeof(vertices) / sizeof(vertices[0]));
-        applyRotationWithQuaternion(q_composed, vertices, sizeof(vertices) / sizeof(vertices[0]), Double3(-cameraTranslation.x, 5 - cameraTranslation.z,  (1 + sin(timeValue)) -cameraTranslation.y));
+        // Quaternion cubeAnimationRotation = Quaternion::eulerAngles(angle, {0, 1, 1});
+        // applyRotationWithQuaternion(cubeAnimationRotation, vertices, sizeof(vertices) / sizeof(vertices[0]));
         std::vector<Vertex> rotatedModelVertices = applyRotationWithQuaternion(q_composed, modelVertices, Double3(-2 -cameraTranslation.x, -cameraTranslation.z, 1 -cameraTranslation.y));
 
         // NOTE: Apply translations
-        applyTranslation(0.0f, 1 + sin(timeValue), -5.0f, matrix1);
+        applyTranslation(0.0f, 0.0f, -5.0f, matrix1);
         applyTranslation(2.0f, -1.0f, 0.0f, modelMatrix);
-
-        // NOTE: Update the vertices of the left cube
-        glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
         // Update the vertices of the tree model
         glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
