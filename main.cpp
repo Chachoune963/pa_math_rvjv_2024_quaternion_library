@@ -6,10 +6,13 @@
 #include <cmath>
 #include <vector>
 #include <iostream>
+#include <filesystem>
 #include "library.h"
 #include "tiny_obj_loader.h"
 
+const GLfloat FOVY = 90;
 const GLint WINDOW_WIDTH = 800, WINDOW_HEIGHT = 600;
+const GLfloat NEAR = .01f, FAR = 1000;
 const GLfloat MOUSE_SENSITIVITY = .001f;
 
 // NOTE: Vertex Shader source code
@@ -119,9 +122,9 @@ void applyRotationWithMatrix(Quaternion& q, GLfloat* matrix) {
 }
 
 void applyTranslation(GLfloat x, GLfloat y, GLfloat z, QuaternionMatrix* matrix) {
-    matrix->d1 = x;
-    matrix->d2 = y;
-    matrix->d3 = z;
+    matrix->d1 += x;
+    matrix->d2 += y;
+    matrix->d3 += z;
 }
 
 void printMatrix(const GLfloat* matrix, const char* name) {
@@ -149,7 +152,7 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos)
     double xDiff = xpos - xOrigin;
     double yDiff = ypos - yOrigin;
 
-    cameraYaw += xDiff * MOUSE_SENSITIVITY;
+    cameraYaw -= xDiff * MOUSE_SENSITIVITY;
     cameraPitch += yDiff * MOUSE_SENSITIVITY;
 }
 
@@ -205,8 +208,6 @@ void loadModel(const std::string& path) {
     auto& shapes = importer.GetShapes();
     auto& materials = importer.GetMaterials();
 
-    printf("%d %d %d", materials[0].diffuse[0], (double)materials[0].diffuse[1], (double)materials[0].diffuse[2]);
-
     for (int i = 0; i < shapes.size(); ++i)
         processShape(shapes[i], attrib, materials);
 }
@@ -242,11 +243,11 @@ int main() {
     }
 
     // NOTE: Define the model path
-    std::string modelPath = "C:\\Users\\Sacha TOUTUT\\pa_math_rvjv_2024_quaternion_library\\landscape.obj";
+    std::filesystem::path modelPath = std::filesystem::current_path() / "landscape.obj";
     std::cout << "Attempting to load model from path: " << modelPath << std::endl;
 
     // NOTE: Load the model
-    loadModel(modelPath);
+    loadModel(modelPath.string());
 
     // NOTE: Build and compile shaders
     GLuint vertexShader = createShader(GL_VERTEX_SHADER, vertexShaderSource);
@@ -282,7 +283,7 @@ int main() {
             1, 0, 0, 0,
             0, 1, 0, 0,
             0, 0, 1, 0,
-            0, 0, 0, 1
+            2.0f, -1.0f, 0.0f, 1
     };
 
     // NOTE: Enable depth test
@@ -310,10 +311,6 @@ int main() {
         float deltaTime = timeValue - previousTime;
         float angle = timeValue * M_PI / 4; // NOTE: Rotate 45 degrees per second
 
-        Quaternion q_rotation = Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)).multiply(Quaternion::eulerAngles(cameraYaw, Double3(0, 1, 0)));
-        // NOTE: Compose rotations
-        Quaternion q_composed = q_rotation.getUnit();
-
         // Camera Controls
         if (glfwGetKey(window, GLFW_KEY_C) == GLFW_PRESS)
             centeredCamera = true;
@@ -330,7 +327,7 @@ int main() {
         if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
             cameraYaw -= M_PI * deltaTime;
 
-        Quaternion q_rotationCamera = Quaternion::eulerAngles(cameraYaw, Double3(0, 0, 1)).multiply(Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)));
+        Quaternion q_rotationCamera = Quaternion::eulerAngles(cameraYaw, Double3(0, 1, 0)).multiply(Quaternion::eulerAngles(cameraPitch, Double3(1, 0, 0)));
         // NOTE: Compose rotations
         Quaternion q_composedCamera = q_rotationCamera.getUnit();
 
@@ -343,26 +340,26 @@ int main() {
                 centeredOffset += 1 * deltaTime;
 
             cameraTranslation = Double3(0, -centeredOffset, 0);
-            cameraTranslation = cameraTranslation.rotate(q_composedCamera);
+            cameraTranslation = cameraTranslation.rotate(q_rotationCamera);
             cameraTranslation = cameraTranslation.add(centerPosition);
         } else {
-            Double3 forwardVector = Double3(0, 1, 0).rotate(q_composedCamera);
+            Double3 forwardVector = Double3(0, 0, 1).rotate(q_composedCamera);
             Double3 rightVector = Double3(1, 0, 0).rotate(q_composedCamera);
-            Double3 upVector = Double3(0, 0, 1).rotate(q_composedCamera);
+            Double3 upVector = Double3(0, -1, 0).rotate(q_composedCamera);
 
             // Movement
             if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-                cameraTranslation = cameraTranslation.add(forwardVector.multiply(deltaTime));
-            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
                 cameraTranslation = cameraTranslation.subtract(forwardVector.multiply(deltaTime));
+            if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+                cameraTranslation = cameraTranslation.add(forwardVector.multiply(deltaTime));
             if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-                cameraTranslation = cameraTranslation.add(rightVector.multiply(deltaTime));
-            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
                 cameraTranslation = cameraTranslation.subtract(rightVector.multiply(deltaTime));
+            if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+                cameraTranslation = cameraTranslation.add(rightVector.multiply(deltaTime));
             if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
-                cameraTranslation = cameraTranslation.add(upVector.multiply(deltaTime));
-            if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
                 cameraTranslation = cameraTranslation.subtract(upVector.multiply(deltaTime));
+            if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+                cameraTranslation = cameraTranslation.add(upVector.multiply(deltaTime));
         }
 
         // Clamp vertical rotation between -90° and 90°
@@ -370,14 +367,10 @@ int main() {
         // NOTE: Apply rotations
         // Quaternion cubeAnimationRotation = Quaternion::eulerAngles(angle, {0, 1, 1});
         // applyRotationWithQuaternion(cubeAnimationRotation, vertices, sizeof(vertices) / sizeof(vertices[0]));
-        std::vector<Vertex> rotatedModelVertices = applyRotationWithQuaternion(q_composed, modelVertices, Double3(-2 -cameraTranslation.x, -cameraTranslation.z, 1 -cameraTranslation.y));
-
-        // NOTE: Apply translations
-        applyTranslation(2.0f, -1.0f, 0.0f, &modelMatrix);
 
         // Update the vertices of the tree model
         glBindBuffer(GL_ARRAY_BUFFER, VBO[2]);
-        glBufferData(GL_ARRAY_BUFFER, rotatedModelVertices.size() * sizeof(Vertex), &rotatedModelVertices[0], GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, modelVertices.size() * sizeof(Vertex), &modelVertices[0], GL_STATIC_DRAW);
 
         // NOTE: Clear the colorbuffer
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -387,23 +380,41 @@ int main() {
 
         // NOTE: Get matrix's uniform location and set matrix
         GLuint modelLoc = glGetUniformLocation(shaderProgram, "model");
-        // NOTE: Camera/View transformation
-        QuaternionMatrix view = {
-                1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                (GLfloat)cameraTranslation.x, (GLfloat)cameraTranslation.y, (GLfloat)cameraTranslation.z, 1
+
+        RotationMatrix rotationMatrix = q_composedCamera.getRotationMatrix();
+
+        // Inverse/Transposed rotationMatrix
+        QuaternionMatrix viewRotation = {
+            rotationMatrix.a1, rotationMatrix.b1, rotationMatrix.c1, 0,
+            rotationMatrix.a2, rotationMatrix.b2, rotationMatrix.c2, 0,
+            rotationMatrix.a3, rotationMatrix.b3, rotationMatrix.c3, 0,
+            0, 0, 0, 1
         };
+
+        // Inverse cameraTranslation
+        // Irregularities on d2 and d3 due to origin change between our calculations and OpenGL!
+        // DO NOT CHANGE!
+        QuaternionMatrix viewTranslation = {
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 0, 1, 0,
+            -cameraTranslation.x, cameraTranslation.z, -cameraTranslation.y, 1
+        };
+
+        // NOTE: Camera/View transformation
+        QuaternionMatrix view = viewTranslation.multiply(viewRotation);
 
         // NOTE: Projection
+        float aspect = WINDOW_WIDTH / WINDOW_HEIGHT;
+        float f = 1 / tan(FOVY / 2);
         QuaternionMatrix projection = {
-                1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, -1, -1,
-                0, 0, -2, 0
+            f / aspect, 0, 0, 0,
+            0, f, 0, 0,
+            0, 0, (FAR + NEAR) / (NEAR - FAR), -1,
+            0, 0, 2 * NEAR * FAR / (NEAR - FAR), 0
         };
 
-        QuaternionMatrix finalMatrix = modelMatrix.multiply(view).multiply(projection);
+        QuaternionMatrix finalMatrix = modelMatrix.multiply(view.multiply(projection));
 
         GLfloat finalMatrixTab[16]
         {
